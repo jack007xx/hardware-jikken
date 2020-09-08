@@ -1,0 +1,191 @@
+\documentclass[a4paper,10pt]{jsarticle}
+
+% 数式
+\usepackage{amsmath,amsfonts}
+\usepackage{bm}
+% 画像
+\usepackage[dvipdfmx]{graphicx}
+
+\usepackage{listingsutf8,jlisting} %日本語のコメントアウトをする場合jlistingが必要
+%ここからソースコードの表示に関する設定
+\lstset{
+  basicstyle={\ttfamily},
+  identifierstyle={\small},
+  commentstyle={\smallitshape},
+  keywordstyle={\small\bfseries},
+  ndkeywordstyle={\small},
+  stringstyle={\small\ttfamily},
+  frame={tb},
+  breaklines=true,
+  columns=[l]{fullflexible},
+  numbers=left,
+  xrightmargin=0zw,
+  xleftmargin=3zw,
+  numberstyle={\scriptsize},
+  stepnumber=1,
+  numbersep=1zw,
+  lineskip=-0.5ex
+}
+
+\begin{document}
+
+\title{ハードウェア第3回レポート}
+\author{坪井正太郎（101830245）}
+\date{\today}
+\maketitle
+
+\section{課題3-1}
+\subsection{概要}
+この実験では，プログラム1を改変し，動作を確認することでシュミレータでの実験の基礎を体得する。
+
+\subsection{実験方法}
+\begin{lstlisting}[caption={program3-1},label={program3-1}]
+  console.log("Start");
+  // onoff.Gpio ライブラリをロード
+  var Gpio = require("onoff").Gpio;
+  // ピン番号を指定して Gpio インスタンスを作成
+  // in / out は⼊⼒に使うか出⼒に使うかの指定
+  1
+  var led = new Gpio(4, "out");
+  var button = new Gpio(12, "in");
+  // 下段 LED1: 4, 17, 27, 22
+  // 上段 LED1: 5, 6, 13, 19
+  // ボタン 1: 20, ボタン 2: 16, ボタン 3: 12
+  // 3 回までループ
+  for(i=0; i<3; i++){
+  // LED を 1 秒周期 (点灯 0.5 秒, 消灯 0.5 秒) で 5 回明滅
+  for(j=0; j<5; j++){
+  sleep(500);
+  led.writeSync(1);
+  sleep(500);
+  led.writeSync(0);
+  }
+  // 無限ループでボタン⼊⼒を待つ (0: off, 1: on)
+  console.log("[Waiting button input]");
+  while(button.readSync() == 0) {
+  sleep(100);
+  }
+  console.log("Pushed!!");
+  }
+  console.log("Finished!");
+\end{lstlisting}
+
+もとのプログラムを改変してledの配置を変更，追加する。
+\begin{lstlisting}[caption={program3-1d},label={program3-1d}]
+  console.log("Start");
+  var Gpio = require("onoff").Gpio;
+
+  var green_led1 = new Gpio(22, "out");
+  var green_led2 = new Gpio(19, "out");
+  var button = new Gpio(16, "in");
+  // 下段 LED1: 4, 17, 27, 22
+  // 上段 LED1: 5, 6, 13, 19
+  // ボタン 1: 20, ボタン 2: 16, ボタン 3: 12
+  for (i = 0; i < 3; i++) {
+    // LED を 1 秒周期 (点灯 0.5 秒, 消灯 0.5 秒) で 5 回明滅
+    for (j = 0; j < 5; j++) {
+      sleep(500);
+      green_led1.writeSync(1);
+      green_led2.writeSync(1);
+      sleep(500);
+      green_led1.writeSync(0);
+      green_led2.writeSync(0);
+    }
+    console.log("[Waiting button input]");
+    while (button.readSync() == 0) {
+      sleep(100);
+    }
+    console.log("Pushed!!");
+  }
+  console.log("Finished!");
+\end{lstlisting}
+
+\subsection{実験結果}
+\ref{program3-1}を実行した結果LEDが明滅し，ボタン入力が正しく受け取られた。
+
+\ref{program3-1d}を実行した結果，明滅するLEDが代わり，入力ボタンの位置も変わった。
+
+\section{課題3-2-1}
+% チャタリング
+
+\section{課題3-2-2}
+% プルアップダウン
+
+\section{課題3-3}
+\subsection{概要}
+複数のLEDを同時に操作して，スイッチによる制御も行う。
+
+\subsection{実験方法}
+LEDを操作するオブジェクトの配列を作成し，countの増減でLEDの明滅順を制御する。
+スイッチ入力のタイミングを増やすために，スリープを分割している。
+
+\begin{lstlisting}[caption={program3-3},label={program3-3}]
+  console.log("Start");
+  var Gpio = require("onoff").Gpio;
+
+  var led1 = new Gpio(4, "out");
+  var led2 = new Gpio(17, "out");
+  var led3 = new Gpio(27, "out");
+  var led4 = new Gpio(22, "out");
+  var leds = [led1, led2, led3, led4]
+
+  var sw1 = new Gpio(20, "in");
+  var sw2 = new Gpio(16, "in");
+  // 下段 LED1: 4, 17, 27, 22
+  // 上段 LED1: 5, 6, 13, 19
+  // ボタン 1: 20, ボタン 2: 16, ボタン 3: 12
+  var count = 0;
+  var upCount = 1;
+  while (true) {
+    leds[count].writeSync(1);
+
+    for (i = 0; i < 5; i++) {
+      // スイッチ振り分け
+      if (sw1.readSync() != 0) {
+        console.log("stopped!!");
+        while (sw1.readSync() == 0) {
+          sleep(100);
+        }
+        console.log("restart!!");
+
+      } else if (sw2.readSync() != 0) {
+        console.log("reversed!!");
+        upCount = (upCount == 1) ? 3 : 1;
+      }
+      sleep(100);
+    }
+
+    leds[count].writeSync(0);
+
+    // upCountの値によって昇降切り替わる
+    count = (count + upCount) % 4;
+    console.log(count);
+}
+\end{lstlisting}
+
+\subsection{実験結果}
+明滅状態が並び順に推移されるようになった。
+SW1を押したときには，推移が止まり入力待ち状態になった。
+SW2を押したときには，推移の方向が逆順になった。
+
+\subsection{考察}
+スイッチ入力を1つでまとめると，タイミングが取れなくなるためスリープを分割して複数回入力を待つようにした。
+これによって若干入力感度が向上した。
+
+\section{課題3-4}
+\subsection{概要}
+
+\subsection{実験方法}
+\begin{lstlisting}[caption={program3-4},label={program3-4}]
+  
+\end{lstlisting}
+
+
+\subsection{実験結果}
+
+\subsection{考察}
+
+\section{課題3-5}
+
+
+\end{document}
